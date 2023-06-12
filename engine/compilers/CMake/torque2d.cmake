@@ -272,6 +272,7 @@ set(T2D_SOURCE_FILES
         ${T2D_SRC_DIR}/2d/sceneobject/Sprite.cc
         ${T2D_SRC_DIR}/2d/sceneobject/SceneObject.cc
         ${T2D_SRC_DIR}/2d/sceneobject/SpriteGridController.cc
+        ${T2D_SRC_DIR}/2d/sceneobject/ImageGridController.cc
         ${T2D_SRC_DIR}/2d/assets/AnimationAsset.cc
         ${T2D_SRC_DIR}/2d/assets/ParticleAssetEmitter.cc
         ${T2D_SRC_DIR}/2d/assets/ParticleAsset.cc
