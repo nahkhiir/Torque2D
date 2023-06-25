@@ -19,33 +19,22 @@
 
 #include <vector>
 
-enum class GridUpdateDirection {
-    NONE,
-    DOWN,
-    UP
-};
 
-enum class MatchType
+struct ImageGridData
 {
-    NONE,
-    ROW,
-    COLUMN
-};
-
-struct GridData
-{
-    GridData()
+    ImageGridData()
     {
-        mCode = 0;
+        mFrame = 0;
         mSpriteId = 0;
-        mBlocking = false;
+        mTileValue = 0;
+
     }
 
-    GridData(S32 code, U32 ID, bool active) : mCode{code}, mSpriteId{ID}, mBlocking{active}{};
+    ImageGridData(S32 frame, U32 ID, U32 val) : mFrame{frame}, mSpriteId{ID}, mTileValue{val} {};
 
-    S32 mCode;
+    S32 mFrame;
     U32 mSpriteId;
-    bool mBlocking;
+    U32 mTileValue;
 };
 
 struct SelectedSprite
@@ -64,23 +53,6 @@ struct SelectedSprite
     U32 mSpriteCol;
 };
 
-struct GameMatch
-{
-    GameMatch()
-    {
-        mMatchType = MatchType::NONE;
-        mPieceCode = 0;
-        mStartPos = 0;
-        mCount = 0;
-    }
-
-    GameMatch(MatchType type, S32 code, U32 pos, U32 count) : mMatchType{type}, mPieceCode{code}, mStartPos{pos}, mCount{count}{};
-
-    MatchType mMatchType;
-    S32 mPieceCode;
-    U32 mStartPos;
-    U32 mCount;
-};
 
 class ImageGridController : public SpriteBase
 {
@@ -122,23 +94,18 @@ public:
     virtual void sceneRender(const SceneRenderState *pSceneRenderState, const SceneRenderRequest *pSceneRenderRequest,
                              BatchRender *pBatchRenderer);
 
-    bool registerSpriteGrid(CompositeSprite *pSceneObject);
+    bool registerImageGrid(CompositeSprite *pSceneObject);
+    void addGameImage(const char *pImageAssetId);
+    void updateGameImageSettings();
 
-    void addGamePieceImage(const char *pAssetID);
-    void addGamePieceAnimation(const char *pAssetID);
-
-    void fillGrid(bool useImages);
+    void fillGrid(bool randomFill);
+    F64 calcImageScore();
 
     U32 gamePieceClickSelect (const Vector2& mouseWorldPosition);
-    bool localPointToGridCoords(const Vector2& localPoint, U32& row, U32& col);
+    bool worldPointToGridCoords(const Vector2& worldPoint, U32& row, U32& col);
     bool checkValidSwap(SelectedSprite firstSelection, SelectedSprite secondSelection);
     void swapSprites(SelectedSprite firstSelection, SelectedSprite secondSelection);
 
-    U32 checkForMatches();
-    void addMatch(MatchType type, S32 code, U32 pos, U32 count);
-    void highlightMatchingPieces();
-    void clearMatchingPieces();
-    void postMatchGridUpdate();
 
     /// Declare Console Object.
     DECLARE_CONOBJECT(ImageGridController);
@@ -173,22 +140,14 @@ private:
     SelectedSprite mFirstSelectedSprite;
     SelectedSprite mSecondSelectedSprite;
 
-    GridUpdateDirection mUpdateDirection;
-    bool mAllowHorizontalMatching;
-    bool mAllowVerticalMatching;
-    U32 mMinimumNumberRowMatching;
-    U32 mMinimumNumberColumnMatching;
-
     ColorF mSelectionColor;
-    ColorF mHighlightColor;
     ColorF mNormalColor;
 
-    std::vector<std::string> mGamePieceImages;
-    std::vector<std::string> mGamePieceAnimations;
-    std::vector<GridData> mGameGridData;
-    std::vector<GameMatch> mGameMatches;
-    CompositeSprite *mGameGrid;
+    std::vector<ImageGridData> mGameGridData;
+    CompositeSprite* mGameGrid;
+    AssetPtr<ImageAsset> mGameImage;
+    std::string mGameImageAssetName;
 
-};
+    };
 
 #endif //_IMAGE_GRID_CONTROLLER_H_

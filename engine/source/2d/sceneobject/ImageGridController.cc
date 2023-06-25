@@ -6,9 +6,8 @@
 #include "2d/sceneobject/ImageGridController.h"
 #endif
 
-#include "mRandom.h"
-
 #include <algorithm>
+#include <random>
 
 // Script bindings.
 #include "2d/sceneobject/ImageGridController_ScriptBinding.h"
@@ -17,8 +16,8 @@ IMPLEMENT_CONOBJECT(ImageGridController);
 
 const size_t DEFAULT_COLS = 8;
 const size_t DEFAULT_ROWS = 8;
-const size_t DEFAULT_GRID_SIZE = 8.0F;
-const size_t DEFAULT_GAME_PIECE_SIZE = 7.0F;
+const size_t DEFAULT_GRID_SIZE = 10.0F;
+const size_t DEFAULT_GAME_PIECE_SIZE = 10.0F;
 const size_t DEFAULT_BORDER_SIZE = 8.0F;
 const ColorF DEFAULT_SELECTION_COLOR = ColorF(1.0F, 0.0F, 0.0F, 1.0F);
 const ColorF DEFAULT_HIGHLIGHT_COLOR = ColorF(1.0F, 0.0F, 1.0F, 1.0F);
@@ -28,19 +27,13 @@ ImageGridController::ImageGridController() : mFlipX(false), mFlipY(false), mNumC
                                                mNumRows{DEFAULT_ROWS},
                                                mCellWidth{DEFAULT_GRID_SIZE}, mCellHeight{DEFAULT_GRID_SIZE},
                                                mBorderSize{DEFAULT_BORDER_SIZE},
-                                               mMaxDistanceSwapX{1},
-                                               mMaxDistanceSwapY{1},
+                                               mMaxDistanceSwapX{DEFAULT_COLS},
+                                               mMaxDistanceSwapY{DEFAULT_ROWS},
                                                mGamePieceWidth{DEFAULT_GAME_PIECE_SIZE},
                                                mGamePieceHeight{DEFAULT_GAME_PIECE_SIZE},
                                                mFirstSelectedSprite(0, 0, 0),
                                                mSecondSelectedSprite(0, 0, 0),
-                                               mUpdateDirection{GridUpdateDirection::DOWN},
-                                               mAllowHorizontalMatching{true},
-                                               mAllowVerticalMatching{false},
-                                               mMinimumNumberRowMatching{3},
-                                               mMinimumNumberColumnMatching{3},
                                                mSelectionColor{DEFAULT_SELECTION_COLOR},
-                                               mHighlightColor{DEFAULT_HIGHLIGHT_COLOR},
                                                mNormalColor{DEFAULT_NORMAL_COLOR}
 {
     mGridWidth = mNumCols * mCellWidth;
@@ -51,7 +44,7 @@ ImageGridController::ImageGridController() : mFlipX(false), mFlipY(false), mNumC
 
     for (U32 count = 0; count < mNumRows * mNumCols; ++count)
     {
-        mGameGridData.emplace_back(-1, 0, false);
+        mGameGridData.emplace_back(-1, 0, 0);
     }
 
     // Set as auto-sizing.
@@ -129,69 +122,46 @@ void ImageGridController::sceneRender(const SceneRenderState *pSceneRenderState,
     //}
 }
 
-void ImageGridController::addGamePieceImage(const char *pAssetID)
-{
-    mGamePieceImages.emplace_back(pAssetID);
-}
 
-void ImageGridController::addGamePieceAnimation(const char *pAssetID)
+void ImageGridController::fillGrid(bool randomFill)
 {
-    mGamePieceAnimations.emplace_back(pAssetID);
-}
-
-void ImageGridController::fillGrid(bool useImages)
-{
-    const U32 frame{0};
+    U32 frame{0};
     char pos[255] = {};
-    U32 gamePiece{0};
-    RandomPCG rng;
+
+    auto rd = std::random_device {};
+    auto rng = std::default_random_engine {rd()};
+    std::vector<int> randFrames(mNumCols * mNumRows);
+    std::iota(std::begin(randFrames), std::end(randFrames), 0);
+    std::shuffle(std::begin(randFrames), std::end(randFrames), rng);
 
 
     for (U32 row = 0; row < mNumRows; ++row)
     {
         for (U32 col = 0; col < mNumCols; ++col)
         {
-            //filling an empty grid
-            if (mGameGridData[row * mNumCols + col].mSpriteId == 0)
+            if (randomFill)
             {
+                frame = randFrames[row * mNumCols + col];
+            }
+            else
+            {
+                frame = (mNumRows - row - 1) * mNumCols + col;
+            }
+
                 snprintf(pos, sizeof(pos), "%d %d", col, row);
                 U32 newSprite = mGameGrid->addSprite(SpriteBatchItem::LogicalPosition(pos));
 
-                if (useImages)
-                {
-                    gamePiece = rng.randI(mGamePieceImages.size());
-                    mGameGrid->setSpriteImage(mGamePieceImages[gamePiece].c_str(), frame);
-                } else
-                {
-                    gamePiece = rng.randI(mGamePieceAnimations.size());
-                    mGameGrid->setSpriteAnimation(mGamePieceAnimations[gamePiece].c_str());
-                }
                 mGameGridData[row * mNumCols + col].mSpriteId = newSprite;
-                mGameGridData[row * mNumCols + col].mCode = gamePiece;
-            }
-            //refill blanks after clearing matches
-            else
-            {
-                if (mGameGridData[row * mNumCols + col].mCode == -1)
-                {
-                    mGameGrid->selectSpriteId(mGameGridData[row * mNumCols + col].mSpriteId);
-                    if (useImages)
-                    {
-                        gamePiece = rng.randI(mGamePieceImages.size());
-                        mGameGrid->setSpriteImage(mGamePieceImages[gamePiece].c_str(), frame);
-                    } else
-                    {
-                        gamePiece = rng.randI(mGamePieceAnimations.size());
-                        mGameGrid->setSpriteAnimation(mGamePieceAnimations[gamePiece].c_str());
-                    }
-                    mGameGridData[row * mNumCols + col].mCode = gamePiece;
-                }
-            }
+                mGameGridData[row * mNumCols + col].mFrame = frame;
+                mGameGridData[row * mNumCols + col].mTileValue = (mNumRows - row - 1) * mNumCols + col;
+
+                mGameGrid->setSpriteImage(mGameImageAssetName.c_str(), frame);
+
         }
     }
 }
 
-bool ImageGridController::registerSpriteGrid(CompositeSprite *pSceneObject)
+bool ImageGridController::registerImageGrid(CompositeSprite *pSceneObject)
 {
     if (mGameGrid != nullptr)
     {
@@ -221,10 +191,10 @@ U32 ImageGridController::gamePieceClickSelect(const Vector2& mouseWorldPosition)
     U32 spriteId{0};
 
     //check click pos is on grid and return row/col clicked
-    if (localPointToGridCoords(mouseWorldPosition, row, col))
+    if (worldPointToGridCoords(mouseWorldPosition, row, col))
     {
         //code==-1 indicates empty cell
-        if (mGameGridData[row * mNumCols + col].mCode >= 0)
+        if (mGameGridData[row * mNumCols + col].mFrame >= 0)
         {
             spriteId = mGameGridData[row * mNumCols + col].mSpriteId;
 
@@ -283,8 +253,10 @@ U32 ImageGridController::gamePieceClickSelect(const Vector2& mouseWorldPosition)
     return spriteId;
 }
 
-bool ImageGridController::localPointToGridCoords(const Vector2& localPoint, U32 &row, U32 &col)
+bool ImageGridController::worldPointToGridCoords(const Vector2& worldPoint, U32 &row, U32 &col)
 {
+    Vector2 localPoint = getLocalPoint(worldPoint);
+
     //point is left of or below grid then return false
     if ((localPoint.x < -mGridWidth / 2) || (localPoint.y < -mGridHeight / 2))
     {
@@ -308,15 +280,9 @@ bool ImageGridController::localPointToGridCoords(const Vector2& localPoint, U32 
 bool ImageGridController::checkValidSwap(SelectedSprite firstSelection, SelectedSprite secondSelection)
 {
     //check horizontal swap
-    S32 selectionDistance = firstSelection.mSpriteCol - secondSelection.mSpriteCol;
-    if (firstSelection.mSpriteRow == secondSelection.mSpriteRow && std::abs(selectionDistance) <= mMaxDistanceSwapX)
-    {
-        return true;
-    }
-
-    //check vertical swap
-    selectionDistance = firstSelection.mSpriteRow - secondSelection.mSpriteRow;
-    if (firstSelection.mSpriteCol == secondSelection.mSpriteCol && std::abs(selectionDistance) <= mMaxDistanceSwapY)
+    S32 selectionDistanceX = firstSelection.mSpriteCol - secondSelection.mSpriteCol;
+    S32 selectionDistanceY = firstSelection.mSpriteRow - secondSelection.mSpriteRow;
+    if (std::abs(selectionDistanceY) <= mMaxDistanceSwapY && std::abs(selectionDistanceX) <= mMaxDistanceSwapX)
     {
         return true;
     }
@@ -327,181 +293,68 @@ bool ImageGridController::checkValidSwap(SelectedSprite firstSelection, Selected
 
 void ImageGridController::swapSprites(SelectedSprite firstSelection, SelectedSprite secondSelection)
 {
-    const U32 frame{0};
+
     U32 firstIndex = firstSelection.mSpriteRow * mNumCols + firstSelection.mSpriteCol;
     U32 secondIndex = secondSelection.mSpriteRow * mNumCols + secondSelection.mSpriteCol;
-    GridData tempData;
+    ImageGridData tempData;
 
     tempData.mSpriteId = firstSelection.mSpriteId;
-    tempData.mCode = mGameGridData[firstIndex].mCode;
+    tempData.mFrame = mGameGridData[firstIndex].mFrame;
 
     if (mGameGrid->selectSpriteId(firstSelection.mSpriteId))
     {
-        mGameGrid->setSpriteImage(mGamePieceImages[mGameGridData[secondIndex].mCode].c_str(), frame);
-        mGameGridData[firstIndex].mCode = mGameGridData[secondIndex].mCode;
+        mGameGrid->setSpriteImage(mGameImageAssetName.c_str(), mGameGridData[secondIndex].mFrame);
+        mGameGridData[firstIndex].mFrame = mGameGridData[secondIndex].mFrame;
     }
 
     if (mGameGrid->selectSpriteId(secondSelection.mSpriteId))
     {
-        mGameGrid->setSpriteImage(mGamePieceImages[tempData.mCode].c_str(), frame);
-        mGameGridData[secondIndex].mCode = tempData.mCode;
+        mGameGrid->setSpriteImage(mGameImageAssetName.c_str(), tempData.mFrame);
+        mGameGridData[secondIndex].mFrame = tempData.mFrame;
     }
 }
 
-U32 ImageGridController::checkForMatches()
+void ImageGridController::addGameImage(const char *pImageAssetId)
 {
-    mGameMatches.clear();
-
-    if (mMinimumNumberRowMatching > 0)
-    {
-        for (U32 row = 0; row < mNumRows; ++row)
-        {
-            S32 currentCode{0};
-            U32 foundCount{0};
-
-            //get code of first piece in row
-            currentCode = mGameGridData[row * mNumCols].mCode;
-            foundCount = 1;
-
-            for (U32 col = 1; col < mNumCols; ++col)
-            {
-                if (mGameGridData[row * mNumCols + col].mCode != currentCode)
-                {
-                    if (foundCount >= mMinimumNumberRowMatching)
-                    {
-                        addMatch(MatchType::ROW, currentCode, (row * mNumCols + col - foundCount), foundCount);
-                    }
-                    currentCode = mGameGridData[row * mNumCols + col].mCode;
-                    foundCount = 1;
-                } else
-                {
-                    ++foundCount;
-                    //special case for end of row
-                    if (col + 1 == mNumCols && foundCount >= mMinimumNumberRowMatching)
-                    {
-                        addMatch(MatchType::ROW, currentCode, (row * mNumCols + col + 1 - foundCount), foundCount);
-                    }
-                }
-            }
-        }
-    }
-
-    if (mMinimumNumberColumnMatching > 0)
-    {
-        for (U32 col = 0; col < mNumCols; ++col)
-        {
-            S32 currentCode{0};
-            U32 foundCount{0};
-
-            //get code of first piece in row
-            currentCode = mGameGridData[col].mCode;
-            foundCount = 1;
-
-            for (U32 row = 1; row < mNumRows; ++row)
-            {
-                if (mGameGridData[row * mNumCols + col].mCode != currentCode)
-                {
-                    if (foundCount >= mMinimumNumberColumnMatching)
-                    {
-                        addMatch(MatchType::COLUMN, currentCode, (row * mNumCols + col - foundCount * mNumCols), foundCount);
-                    }
-                    currentCode = mGameGridData[row * mNumCols + col].mCode;
-                    foundCount = 1;
-                } else
-                {
-                    ++foundCount;
-                    //special case for top of col
-                    if (row + 1 == mNumRows && foundCount >= mMinimumNumberColumnMatching)
-                    {
-                        addMatch(MatchType::COLUMN, currentCode, ((row + 1) * mNumCols + col - foundCount * mNumCols), foundCount);
-                    }
-                }
-            }
-        }
-    }
-
-    return mGameMatches.size();
-}
-
-void ImageGridController::addMatch(MatchType type, S32 code, U32 pos, U32 count)
-{
-    //ignore code == -1 as its empty cell
-    //possibly a hack but its cleaner to just ignore here than complicate the match finding routing
-    if (code >= 0)
-    {
-        mGameMatches.emplace_back(GameMatch{type, code, pos, count});
-    }
-}
-
-void ImageGridController::clearMatchingPieces()
-{
-    if (mGameMatches.empty())
-    {
+    // Finish if invalid image asset.
+    if ( pImageAssetId == NULL )
         return;
-    }
 
-    for (auto & match : mGameMatches)
-    {
-        if (match.mMatchType == MatchType::ROW)
-        {
-            for (U32 index = match.mStartPos; index < match.mStartPos + match.mCount; ++index)
-            {
-                mGameGridData[index].mCode = -1;
-                mGameGrid->selectSpriteId(mGameGridData[index].mSpriteId);
-                mGameGrid->clearSpriteAsset();
-            }
-        }
-        else if (match.mMatchType == MatchType::COLUMN)
-        {
-            for (U32 index = match.mStartPos; index < match.mStartPos + match.mCount * mNumCols; index += mNumCols)
-            {
-                mGameGridData[index].mCode = -1;
-                mGameGrid->selectSpriteId(mGameGridData[index].mSpriteId);
-                mGameGrid->clearSpriteAsset();
-            }
-        }
-    }
+    mGameImageAssetName = std::string(pImageAssetId);
+
+    // Set asset.
+    mGameImage.setAssetId( pImageAssetId );
+
+    updateGameImageSettings();
+
 }
 
-void ImageGridController::postMatchGridUpdate()
+void ImageGridController::updateGameImageSettings()
 {
-    //TODO
+    mGameImage->setCellWidth(mGameImage->getImageWidth() / mNumCols);
+    mGameImage->setCellHeight(mGameImage->getImageHeight() / mNumRows);
+    mGameImage->setCellCountX(mNumCols);
+    mGameImage->setCellCountY(mNumRows);
+
 }
 
-void ImageGridController::highlightMatchingPieces()
+F64 ImageGridController::calcImageScore()
 {
-    if (mGameMatches.empty())
-    {
-        return;
-    }
+    F64 imageScore{0.0F};
 
-    //reset highlighting
-    for (auto & piece : mGameGridData)
+    for (auto & imageTile : mGameGridData)
     {
-        mGameGrid->selectSpriteId(mGameGridData[piece.mSpriteId].mSpriteId);
-        mGameGrid->setSpriteBlendColor(mNormalColor);
-    }
-
-    for (auto & match : mGameMatches)
-    {
-        if (match.mMatchType == MatchType::ROW)
+        if (imageTile.mFrame == imageTile.mTileValue)
         {
-            for (U32 index = match.mStartPos; index < match.mStartPos + match.mCount; ++index)
-            {
-                mGameGrid->selectSpriteId(mGameGridData[index].mSpriteId);
-                mGameGrid->setSpriteBlendColor(mHighlightColor);
-            }
-        }
-        else if (match.mMatchType == MatchType::COLUMN)
-        {
-            for (U32 index = match.mStartPos; index < match.mStartPos + match.mCount * mNumCols; index += mNumCols)
-            {
-                mGameGrid->selectSpriteId(mGameGridData[index].mSpriteId);
-                mGameGrid->setSpriteBlendColor(mHighlightColor);
-            }
+            imageScore += 1.0F;
         }
     }
+
+    imageScore /= (mNumCols * mNumRows);
+
+    return imageScore;
 }
+
 
 
 

@@ -24,57 +24,21 @@ ConsoleMethodWithDocs(ImageGridController, registerImageGrid, ConsoleBool, 3, 3,
     }
 
     // Add to Scene.
-    return object->registerSpriteGrid( pSceneObject );
+    return object->registerImageGrid( pSceneObject );
 }
 
-//-----------------------------------------------------------------------------
-
-/*! Sets the sprite image and optional frame.
-    @param imageAssetId The image to set the sprite to.
-    @param imageFrame The image frame of the imageAssetId to set the sprite to.
-    @return No return value.
-*/
-ConsoleMethodWithDocs(ImageGridController, addGamePieceImage, ConsoleVoid, 3, 3, (imageAssetId))
-{
-    // Add to Scene.
-    object->addGamePieceImage(argv[2]);
-}
-
-//-----------------------------------------------------------------------------
-
-/*! Sets the sprite image and optional frame.
-    @param imageAssetId The image to set the sprite to.
-    @param imageFrame The image frame of the imageAssetId to set the sprite to.
-    @return No return value.
-*/
-ConsoleMethodWithDocs(ImageGridController, addGamePieceAnimation, ConsoleVoid, 3, 3, (animationAssetId))
-{
-    // Add to Scene.
-    object->addGamePieceAnimation(argv[2]);
-}
 
 //-----------------------------------------------------------------------------
 
 /*! Fills the grid with randomly selected game pieces.
     @return No return value.
 */
-ConsoleMethodWithDocs(ImageGridController, fillImageGrid, ConsoleVoid, 2, 2, ())
+ConsoleMethodWithDocs(ImageGridController, fillImageGrid, ConsoleVoid, 3, 3, (bool fillRandom))
 {
-    //TODO should this be part of the console method signature?
-    bool useImages = true;
-    object->fillGrid(useImages);
+    bool randomFill = dAtob(argv[2]);
+    object->fillGrid(randomFill);
 }
 
-//-----------------------------------------------------------------------------
-
-/*! Fills the grid with randomly selected game pieces.
-    @return No return value.
-*/
-ConsoleMethodWithDocs(ImageGridController, fillAnimationGrid, ConsoleVoid, 2, 2, ())
-{
-    bool useImages = false;
-    object->fillGrid(useImages);
-}
 
 //-----------------------------------------------------------------------------
 
@@ -119,12 +83,15 @@ ConsoleMethodWithDocs(ImageGridController, selectGamePiece, ConsoleInt, 3, 4, (f
 
 //-----------------------------------------------------------------------------
 
-/*! Fills the grid with randomly selected game pieces.
+/*! Sets the sprite image and optional frame.
+    @param imageAssetId The image to set the sprite to.
+    @param imageFrame The image frame of the imageAssetId to set the sprite to.
     @return No return value.
 */
-ConsoleMethodWithDocs(ImageGridController, checkMatches, ConsoleInt, 2, 2, ())
+ConsoleMethodWithDocs(ImageGridController, addGameImage, ConsoleVoid, 3, 3, (imageAssetId))
 {
-    return object->checkForMatches();
+    // Add to Scene.
+    object->addGameImage(argv[2]);
 }
 
 //-----------------------------------------------------------------------------
@@ -132,19 +99,9 @@ ConsoleMethodWithDocs(ImageGridController, checkMatches, ConsoleInt, 2, 2, ())
 /*! Fills the grid with randomly selected game pieces.
     @return No return value.
 */
-ConsoleMethodWithDocs(ImageGridController, clearMatches, ConsoleVoid, 2, 2, ())
+ConsoleMethodWithDocs(ImageGridController, getImageScore, ConsoleFloat, 2, 2, ())
 {
-    object->clearMatchingPieces();
-}
-
-//-----------------------------------------------------------------------------
-
-/*! Fills the grid with randomly selected game pieces.
-    @return No return value.
-*/
-ConsoleMethodWithDocs(ImageGridController, highlightMatches, ConsoleVoid, 2, 2, ())
-{
-    object->highlightMatchingPieces();
+    return object->calcImageScore();
 }
 
 ConsoleMethodGroupEndWithDocs(ImageGridController)
